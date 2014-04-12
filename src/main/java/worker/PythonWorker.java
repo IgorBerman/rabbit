@@ -13,9 +13,9 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 
-public class Worker {
+public class PythonWorker {
     private static final String MAX_PENDING = "worker.python.max.pending";
-    private static Logger LOG = Logger.getLogger(Worker.class);
+    private static Logger LOG = Logger.getLogger(PythonWorker.class);
     private OutputCollector _collector;
     private Map<String, WorkMessage> _inputs = new ConcurrentHashMap<String, WorkMessage>();
 
@@ -28,8 +28,9 @@ public class Worker {
 
     private Thread _readerThread;
     private Thread _writerThread;
+    private Number subpid;
 
-    public Worker(String... command) {
+    public PythonWorker(String... command) {
         _command = command;
     }
 
@@ -43,8 +44,7 @@ public class Worker {
         _collector = collector;
 
         try {
-            // subprocesses must send their pid first thing
-            Number subpid = _process.launch(workerConf, context);
+            subpid = _process.launch(workerConf, context);
             LOG.info("Launched subprocess with pid " + subpid);
         } catch (IOException e) {
             throw new RuntimeException("Error when launching multilang subprocess\n" + _process.getErrorsString(), e);
@@ -78,7 +78,7 @@ public class Worker {
                     }
                 }
             }
-        });
+        }, "ReaderFromProcess" + subpid);
 
         _readerThread.start();
 
@@ -98,7 +98,7 @@ public class Worker {
                     }
                 }
             }
-        });
+        }, "WriterToProcess" + subpid);
 
         _writerThread.start();
     }
@@ -124,6 +124,7 @@ public class Worker {
     }
 
     public void cleanup() {
+        LOG.info("Closing worker");
         _running = false;
         _process.destroy();
         _inputs.clear();

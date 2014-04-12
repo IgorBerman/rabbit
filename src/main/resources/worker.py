@@ -6,11 +6,9 @@ import logging
 
 logger = logging.getLogger('worker')
 logger.setLevel(logging.DEBUG)
-# create file handler which logs even debug messages
 #fh = logging.FileHandler('c:/tmp/out%s.log' % os.getpid())
 fh = logging.FileHandler('c:/tmp/out.log' )
 fh.setLevel(logging.DEBUG)
-# create console handler with a higher log level
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 logger.addHandler(fh)
@@ -37,27 +35,11 @@ def readMsg():
 #queue up commands we read while trying to read taskids
 pending_commands = deque()
 
-def readTaskIds():
-    if pending_taskids:
-        return pending_taskids.popleft()
-    else:
-        msg = readMsg()
-        while type(msg) is not list:
-            pending_commands.append(msg)
-            msg = readMsg()
-        return msg
-
-#queue up taskids we read while trying to read commands/tuples
-pending_taskids = deque()
-
 def readCommand():
     if pending_commands:
         return pending_commands.popleft()
     else:
         msg = readMsg()
-        while type(msg) is list:
-            pending_taskids.append(msg)
-            msg = readMsg()
         return msg
 
 def readWorkerMessage():
@@ -69,9 +51,6 @@ def sendMsgToParent(msg):
     print json_encode(msg)
     print "end"
     sys.stdout.flush()
-
-def sync():
-    sendMsgToParent({'command':'sync'})
 
 def sendpid(heartbeatdir):
     pid = os.getpid()
@@ -116,31 +95,14 @@ class Worker(object):
         pass
 
     def run(self):
-        conf, context = initComponent()
         try:
+            conf, context = initComponent()
             self.initialize(conf, context)
             while True:
-                workerMessage = readWorkerMessage()
-                self.process(workerMessage)
-        except Exception, e:
-            reportError(traceback.format_exc(e))
-
-class BasicWorker(object):
-    def initialize(self, stormconf, context):
-        pass
-
-    def process(self, workerMessage):
-        pass
-
-    def run(self):
-        conf, context = initComponent()
-        try:
-            logger.info("before initialize")
-            self.initialize(conf, context)
-            logger.info("after initialize")
-            while True:
-                workerMessage = readWorkerMessage()
-                self.process(workerMessage)
-                ack(workerMessage)
+                try:
+                    workerMessage = readWorkerMessage()
+                    self.process(workerMessage)
+                except Exception, e:
+                    reportError(traceback.format_exc(e))    
         except Exception, e:
             reportError(traceback.format_exc(e))
