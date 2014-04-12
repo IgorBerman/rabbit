@@ -16,6 +16,7 @@ import org.springframework.amqp.support.converter.JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 
 @Configuration
@@ -40,6 +41,14 @@ public class SpringConfiguration {
         container.setQueueNames(WORKER_QUEUE_NAME);
         container.setPrefetchCount(PREFETCH_COUNT);
         container.setConcurrentConsumers(CONCURRENT_CONSUMERS);// 3 consumer threads
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setMaxPoolSize(CONCURRENT_CONSUMERS);
+        executor.setCorePoolSize(CONCURRENT_CONSUMERS);
+        executor.setDaemon(true);
+        executor.setThreadNamePrefix(WORKER_QUEUE_NAME + "Consumer");
+        executor.initialize();
+        container.setTaskExecutor(executor);
 
         container.setMessageListener(new MessageListenerAdapter(exampleListener(), new JsonMessageConverter()));
         return container;
